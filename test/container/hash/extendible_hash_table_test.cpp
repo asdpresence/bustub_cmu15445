@@ -27,6 +27,8 @@ TEST(ExtendibleHashTableTest, DISABLED_SampleTest) {
   EXPECT_EQ(2, table->GetLocalDepth(2));
   EXPECT_EQ(2, table->GetLocalDepth(3));
 
+  EXPECT_EQ(3, table->GetGlobalDepth());
+
   std::string result;
   table->Find(9, result);
   EXPECT_EQ("i", result);

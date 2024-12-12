@@ -74,9 +74,12 @@ auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
   //UNREACHABLE("not implemented");
   std::scoped_lock<std::mutex> lock(latch_); // 加锁
   size_t key_index=IndexOf(key);
-  if(static_cast<size_t>(num_buckets_)<key_index+1){
+  // if(static_cast<size_t>(num_buckets_)<key_index+1){
+  //   return false;
+  // }
+  if (key_index >= dir_.size()) {
     return false;
-  }
+}
   return dir_[key_index]->Find(key, value);
 }
 
@@ -85,49 +88,66 @@ auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
   //UNREACHABLE("not implemented");
   std::scoped_lock<std::mutex> lock(latch_); // 加锁
   size_t key_index=IndexOf(key);
-  if(static_cast<size_t>(num_buckets_)<key_index+1){
+  // if(static_cast<size_t>(num_buckets_)<key_index+1){
+  //   return false;
+  // }
+  if (key_index >= dir_.size()) {
     return false;
-  }
-
+}
   return dir_[key_index]->Remove(key);
 }
 
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  // UNREACHABLE("not implemented");
   std::scoped_lock<std::mutex> lock(latch_); // 加锁
-  size_t key_index=IndexOf(key);
 
-  //插入不成功等价于对应桶满
-  while(!dir_[key_index]->Insert(key,value))
-  {
-    //桶分裂
-    //如果存储桶的本地深度等于全局深度，则增加全局深度并将目录的大小增加一倍。
-    if(dir_[key_index]->GetDepth()==global_depth_){
+  while (true) {
+    size_t key_index = IndexOf(key);
+    auto target_bucket = dir_[key_index];
+    
+    if (target_bucket->Insert(key, value)) {
+      // 插入成功，退出循环
+      break;
+    }
+
+    // 桶分裂
+    size_t bucket_depth = target_bucket->GetDepth();
+    
+    // 如果桶的本地深度等于全局深度，增加全局深度并将目录加倍
+    if (bucket_depth == static_cast<size_t>(global_depth_)) {
       global_depth_++;
-      size_t dir_size=dir_.size();
-      for(size_t i=0;i<dir_size;i++){
+      size_t current_dir_size = dir_.size();
+      for (size_t i = 0; i < current_dir_size; i++) {
         dir_.push_back(dir_[i]);
       }
     }
-    //增加存储桶的本地深度
-    dir_[key_index]->IncrementDepth();
-    //创建一个新的空桶
-    std::shared_ptr<Bucket> newbucket=std::make_shared<Bucket>(bucket_size_,dir_[key_index]->GetDepth());
-    //重新分配存储桶中的目录指针
-    //感觉需要更改的目录指针，应该是key_index+2的localdepth-1次方，让对应的目录指向新的bucket
-    dir_[key_index+(1<<(dir_[key_index]->GetDepth()-1))]=newbucket;
 
-    //重新分配存储桶中的kv对
-    auto datalist=dir_[key_index]->GetItems();
-    dir_[key_index]->ClearList();
-    for(auto& pair :datalist){
-      size_t new_index=IndexOf(pair.first);
-      dir_[new_index]->Insert(pair.first,pair.second);
+    // 增加桶的本地深度
+    target_bucket->IncrementDepth();
+    size_t new_local_depth = target_bucket->GetDepth();
+    size_t mask = 1 << (new_local_depth - 1);
+
+    // 创建新桶
+    std::shared_ptr<Bucket> new_bucket = std::make_shared<Bucket>(bucket_size_, new_local_depth);
+    num_buckets_++;
+
+    // 更新目录指针
+    for (size_t i = 0; i < dir_.size(); i++) {
+      if (dir_[i] == target_bucket && (i & mask)) {
+        dir_[i] = new_bucket;
+      }
+    }
+
+    // 重新分配桶中的 KV 对
+    auto items = target_bucket->GetItems();
+    target_bucket->ClearList();
+    for (const auto &pair : items) {
+      size_t new_index = IndexOf(pair.first);
+      dir_[new_index]->Insert(pair.first, pair.second);
     }
   }
-
 }
+
 
 //===--------------------------------------------------------------------===//
 // Bucket
@@ -168,6 +188,13 @@ auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Bucket::Insert(const K &key, const V &value) -> bool {
   // UNREACHABLE("not implemented");
+      for(auto& pair:list_){
+        if(pair.first==key){ 
+          pair.second=value;
+          // pair.second=value;
+          return true;
+        }
+      }
         if(IsFull()){
         return false;
       }
