@@ -12,13 +12,13 @@
 
 #pragma once
 
+#include <deque>
 #include <limits>
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
-#include<unordered_set>
+#include <unordered_set>
 #include <vector>
-#include<deque>
 
 #include "common/config.h"
 #include "common/macros.h"
@@ -137,8 +137,8 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  size_t current_timestamp_{0};//时间戳，每次递增1
-  size_t curr_size_{0};//可逐出页面的大小，即LRUKplacer的当前大小
+  size_t current_timestamp_{0};  //时间戳，每次递增1
+  size_t curr_size_{0};          //可逐出页面的大小，即LRUKplacer的当前大小
   size_t replacer_size_;
   size_t k_;
   std::mutex latch_;
