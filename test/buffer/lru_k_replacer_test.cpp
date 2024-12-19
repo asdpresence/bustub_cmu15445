@@ -97,4 +97,63 @@ TEST(LRUKReplacerTest, SampleTest) {
   lru_replacer.Remove(1);
   ASSERT_EQ(0, lru_replacer.Size());
 }
+
+TEST(LRUKReplacerTest, DuplicateSetEvictable) {
+  LRUKReplacer lru_replacer(5, 2);
+
+  lru_replacer.RecordAccess(1);
+  lru_replacer.RecordAccess(1);
+  lru_replacer.SetEvictable(1, true);
+  EXPECT_EQ(lru_replacer.Size(), 1);
+
+  // 重复设置同一帧为可驱逐
+  lru_replacer.SetEvictable(1, true);
+  EXPECT_EQ(lru_replacer.Size(), 1);  // 大小应保持不变
+
+  // 重复设置同一帧为不可驱逐
+  lru_replacer.SetEvictable(1, false);
+  EXPECT_EQ(lru_replacer.Size(), 0);
+
+  lru_replacer.SetEvictable(1, false);
+  EXPECT_EQ(lru_replacer.Size(), 0);  // 大小应保持不变
+}
+
+TEST(LRUKReplacerTest, RemoveNonEvictableFrame) {
+  LRUKReplacer lru_replacer(5, 2);
+
+  lru_replacer.SetEvictable(1, false);
+  EXPECT_EQ(lru_replacer.Size(), 0);
+
+  // 尝试移除不可驱逐的帧
+  lru_replacer.Remove(1);
+  EXPECT_EQ(lru_replacer.Size(), 0);  // 大小应保持不变
+}
+
+TEST(LRUKReplacerTest, ConcurrentAccess) {
+  LRUKReplacer lru_replacer(100, 2);
+
+  auto set_evictable = [&lru_replacer](int start, int end) {
+    for (int i = start; i < end; ++i) {
+      lru_replacer.SetEvictable(i, true);
+    }
+  };
+
+  auto remove_evictable = [&lru_replacer](int start, int end) {
+    for (int i = start; i < end; ++i) {
+      lru_replacer.SetEvictable(i, false);
+    }
+  };
+
+  std::thread t1(set_evictable, 0, 50);
+  std::thread t2(set_evictable, 50, 100);
+  std::thread t3(remove_evictable, 25, 75);
+
+  t1.join();
+  t2.join();
+  t3.join();
+
+  // 最终，evictable_frames_ 应包含 0-24 和 75-99，共50个帧
+  EXPECT_EQ(lru_replacer.Size(), 50);
+}
+
 }  // namespace bustub
