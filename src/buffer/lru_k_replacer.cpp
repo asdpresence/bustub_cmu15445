@@ -12,10 +12,10 @@
 
 #include "buffer/lru_k_replacer.h"
 #include <cstddef>
+#include <deque>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
-
 namespace bustub {
 
 constexpr frame_id_t INVALID_FRAME_ID = -1;
@@ -48,9 +48,9 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
     // 距离更久，或者距离相同，最近一次的访问时间更早
     // 这包括了所有的情况
-    if (distance > max_distance || (distance == max_distance && history.back() < victim_timestamp)) {
+    if (distance > max_distance || (distance == max_distance && history.front() < victim_timestamp)) {
       victim = frame;
-      victim_timestamp = history.back();
+      victim_timestamp = history.front();
       max_distance = distance;
     }
   }
