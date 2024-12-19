@@ -12,7 +12,6 @@
 
 #include "buffer/buffer_pool_manager_instance.h"
 #include <cstddef>
-#include <mutex>
 
 #include "common/config.h"
 #include "common/exception.h"

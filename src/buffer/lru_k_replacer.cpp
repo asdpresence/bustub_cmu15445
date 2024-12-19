@@ -14,7 +14,6 @@
 #include <cstddef>
 #include <deque>
 #include <limits>
-#include <mutex>
 #include <stdexcept>
 namespace bustub {
 
@@ -115,6 +114,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 
 auto LRUKReplacer::Size() -> size_t {
   std::lock_guard<std::mutex> lock(latch_);
-  return curr_size_;
+  // return curr_size_;
+  return evictable_frames_.size();
 }
 }  // namespace bustub
