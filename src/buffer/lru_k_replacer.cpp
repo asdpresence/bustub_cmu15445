@@ -34,19 +34,20 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   for (const auto &frame : evictable_frames_) {
     std::deque<size_t> &history = access_history_[frame];
     size_t distance = 0;
-    //该页面访问次数大于等于k次，找到位置k，计算distance
+    // 该页面访问次数大于等于k次，找到位置k，计算distance
     if (history.size() >= k_) {
       distance = current_timestamp_ - history[history.size() - k_];
       // for(size_t i=0;i<k_;i++) {it--;}
       // distance=current_timestamp_-*it;
-    }
-    //小于k次，设为+inf
-    else {
+
+    } else {
+      // 小于k次，设为+inf
+
       distance = std::numeric_limits<size_t>::max();
     }
 
-    //距离更久，或者距离相同，最近一次的访问时间更早
-    //这包括了所有的情况
+    // 距离更久，或者距离相同，最近一次的访问时间更早
+    // 这包括了所有的情况
     if (distance > max_distance || (distance == max_distance && history.back() < victim_timestamp)) {
       victim = frame;
       victim_timestamp = history.back();

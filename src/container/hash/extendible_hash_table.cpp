@@ -174,7 +174,7 @@ auto ExtendibleHashTable<K, V>::Bucket::Remove(const K &key) -> bool {
   bool flag = false;
   for (auto iter = list_.begin(); iter != list_.end();) {
     if (iter->first == key) {
-      iter = list_.erase(iter);  //返回被删除位置的后一个迭代器
+      iter = list_.erase(iter);  // 返回被删除位置的后一个迭代器
       flag = true;
     } else {
       iter++;

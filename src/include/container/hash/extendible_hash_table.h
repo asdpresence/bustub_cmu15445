@@ -123,7 +123,6 @@ class ExtendibleHashTable : public HashTable<K, V> {
 
     inline auto GetItems() -> std::list<std::pair<K, V>> & { return list_; }
 
-    //我添加的辅助函数
     /**@brief*/
     inline void ClearList() { list_.clear(); }
 

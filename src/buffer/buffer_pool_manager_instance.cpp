@@ -48,14 +48,14 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
 auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   std::lock_guard<std::mutex> lock(latch_);
 
-  //还有空余帧
+  // 还有空余帧
   if (!free_list_.empty()) {
-    //取一个空余帧
+    // 取一个空余帧
     frame_id_t new_frame_id = free_list_.back();
     free_list_.pop_back();
 
     Page &page = pages_[new_frame_id];
-    //哈希表中删去旧页
+    // 哈希表中删去旧页
     page_table_->Remove(page.GetPageId());
     // reset the memory and metadata for the new page
     page.page_id_ = AllocatePage();
@@ -64,26 +64,26 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     page.pin_count_ = 1;
     // pin该frame
     replacer_->SetEvictable(new_frame_id, false);
-    //替换池中记录：访问该帧
+    // 替换池中记录：访问该帧
     replacer_->RecordAccess(new_frame_id);
-    //维护哈希表
+    // 维护哈希表
     page_table_->Insert(page.page_id_, new_frame_id);
 
-    //维护指针及返回值
+    // 维护指针及返回值
     *page_id = page.page_id_;
     return &page;
   }
 
   frame_id_t new_frame_id;
-  //来到替换池中寻找是否有可逐出的帧
+  // 来到替换池中寻找是否有可逐出的帧
   if (replacer_->Evict(&new_frame_id)) {
-    //取该帧中的旧页
+    // 取该帧中的旧页
     Page &page = pages_[new_frame_id];
-    //旧页是否脏,若脏，写入disk
+    // 旧页是否脏,若脏，写入disk
     if (page.IsDirty()) {
       disk_manager_->WritePage(page.GetPageId(), page.GetData());
     }
-    //哈希表中删去旧页
+    // 哈希表中删去旧页
     page_table_->Remove(page.GetPageId());
     // reset the memory and metadata for the new page
     page.page_id_ = AllocatePage();
@@ -92,24 +92,24 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     page.pin_count_ = 1;
     // pin该frame
     replacer_->SetEvictable(new_frame_id, false);
-    //替换池中记录：访问该帧
+    // 替换池中记录：访问该帧
     replacer_->RecordAccess(new_frame_id);
-    //维护哈希表
+    // 维护哈希表
     page_table_->Insert(page.page_id_, new_frame_id);
-    //维护指针及返回值
+    // 维护指针及返回值
     *page_id = page.page_id_;
     return &page;
   }
-  //没有空余帧并且没有可逐出的帧
+  // 没有空余帧并且没有可逐出的帧
   return nullptr;
 }
 
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   std::lock_guard<std::mutex> lock(latch_);
   frame_id_t frame_id;
-  //该页在buffer pool里
+  // 该页在buffer pool里
   if (page_table_->Find(page_id, frame_id)) {
-    //访问
+    // 访问
     replacer_->SetEvictable(frame_id, false);
     replacer_->RecordAccess(frame_id);
     Page &page = pages_[frame_id];
@@ -117,28 +117,28 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     return &page;
   }
 
-  //还有空余帧
+  // 还有空余帧
   if (!free_list_.empty()) {
     frame_id_t new_frame_id = free_list_.back();
     free_list_.pop_back();
-    //用disk读取到的新页，代替旧页
-    //取旧页
+    // 用disk读取到的新页，代替旧页
+    // 取旧页
     Page &page = pages_[new_frame_id];
 
-    //旧页是否脏,若脏，写入disk
+    // 旧页是否脏,若脏，写入disk
     if (page.IsDirty()) {
       disk_manager_->WritePage(page.GetPageId(), page.GetData());
     }
-    //哈希表中删去旧页
+    // 哈希表中删去旧页
     page_table_->Remove(page.GetPageId());
-    //读取新页数据
+    // 读取新页数据
     disk_manager_->ReadPage(page_id, page.data_);
-    //更新页面元数据
+    // 更新页面元数据
     page.page_id_ = page_id;
     page.pin_count_ = 1;
     page.is_dirty_ = false;
 
-    //更新数据结构
+    // 更新数据结构
     page_table_->Insert(page_id, new_frame_id);
     replacer_->SetEvictable(new_frame_id, false);
     replacer_->RecordAccess(new_frame_id);
@@ -146,24 +146,24 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     return &page;
   }
 
-  //从缓存池逐出
+  // 从缓存池逐出
   frame_id_t new_frame_id;
   if (replacer_->Evict(&new_frame_id)) {
     Page &page = pages_[new_frame_id];
-    //旧页是否脏,若脏，写入disk
+    // 旧页是否脏,若脏，写入disk
     if (page.IsDirty()) {
       disk_manager_->WritePage(page.GetPageId(), page.GetData());
     }
-    //哈希表中删去旧页
+    // 哈希表中删去旧页
     page_table_->Remove(page.GetPageId());
-    //读取新页数据
+    // 读取新页数据
     disk_manager_->ReadPage(page_id, page.data_);
-    //更新页面元数据
+    // 更新页面元数据
     page.page_id_ = page_id;
     page.pin_count_ = 1;
     page.is_dirty_ = false;
 
-    //更新数据结构
+    // 更新数据结构
     page_table_->Insert(page_id, new_frame_id);
     replacer_->SetEvictable(new_frame_id, false);
     replacer_->RecordAccess(new_frame_id);
@@ -230,31 +230,31 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
     return true;
   }
 
-  //取该帧存的page
+  // 取该帧存的page
   Page &page = pages_[frame_id];
 
   if (page.GetPinCount() > 0) {
     return false;
   }
-  //如果是脏页，需要将数据写入磁盘
+  // 如果是脏页，需要将数据写入磁盘
   // if(page.IsDirty()){
   //   disk_manager_->WritePage(page_id, page.GetData());
   // }
 
-  //将（页编号，帧编号）键值对从哈希表移除
+  // 将（页编号，帧编号）键值对从哈希表移除
   page_table_->Remove(page_id);
-  //将对应帧从替换池移除,注意这里应是完全移除，因为该页已从内存池中释放
+  // 将对应帧从替换池移除,注意这里应是完全移除，因为该页已从内存池中释放
   replacer_->Remove(frame_id);
-  //将该帧放入空闲帧列表
+  // 将该帧放入空闲帧列表
   free_list_.push_back(frame_id);
 
-  //重置页的内存和数据
+  // 重置页的内存和数据
   page.ResetMemory();
   page.page_id_ = INVALID_PAGE_ID;
   page.pin_count_ = 0;
   page.is_dirty_ = false;
 
-  //硬盘上释放该页
+  // 硬盘上释放该页
   DeallocatePage(page_id);
   return true;
 
