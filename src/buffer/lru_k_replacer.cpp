@@ -82,6 +82,11 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     //   throw std::invalid_argument("Invalid frame_id in SetEvictable");
     return;
   }
+  //  需要首先保证，这个帧是存在在replacer中的
+  if (access_history_.find(frame_id) == access_history_.end()) {
+    return;
+  }
+
   auto it = evictable_frames_.find(frame_id);
   if (set_evictable) {
     if (it == evictable_frames_.end()) {
