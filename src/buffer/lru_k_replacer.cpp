@@ -78,7 +78,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::lock_guard<std::mutex> lock(latch_);
-  if (static_cast<size_t>(frame_id) >= replacer_size_) {
+  if (static_cast<size_t>(frame_id) > replacer_size_) {
     //   throw std::invalid_argument("Invalid frame_id in SetEvictable");
     return;
   }

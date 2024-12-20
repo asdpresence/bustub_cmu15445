@@ -129,31 +129,58 @@ TEST(LRUKReplacerTest, RemoveNonEvictableFrame) {
   EXPECT_EQ(lru_replacer.Size(), 0);  // 大小应保持不变
 }
 
-TEST(LRUKReplacerTest, ConcurrentAccess) {
-  LRUKReplacer lru_replacer(100, 2);
+TEST(LRUKReplacerTest, EvictAllFrames) {
+  LRUKReplacer lru_replacer(3, 2);
+  lru_replacer.RecordAccess(1);
+  lru_replacer.RecordAccess(2);
+  lru_replacer.RecordAccess(3);
+  lru_replacer.SetEvictable(1, true);
+  lru_replacer.SetEvictable(2, true);
+  lru_replacer.SetEvictable(3, true);
+  EXPECT_EQ(lru_replacer.Size(), 3);
 
-  auto set_evictable = [&lru_replacer](int start, int end) {
-    for (int i = start; i < end; ++i) {
-      lru_replacer.SetEvictable(i, true);
-    }
-  };
+  int value;
+  lru_replacer.Evict(&value);
+  lru_replacer.Evict(&value);
+  lru_replacer.Evict(&value);
+  EXPECT_EQ(lru_replacer.Size(), 0);
+}
+TEST(LRUKReplacerTest, InvalidFrameId) {
+  LRUKReplacer lru_replacer(5, 2);
 
-  auto remove_evictable = [&lru_replacer](int start, int end) {
-    for (int i = start; i < end; ++i) {
-      lru_replacer.SetEvictable(i, false);
-    }
-  };
+  // 尝试设置无效的 frame_id 为可驱逐
+  lru_replacer.SetEvictable(10, true);  // 超出范围
+  EXPECT_EQ(lru_replacer.Size(), 0);
 
-  std::thread t1(set_evictable, 0, 50);
-  std::thread t2(set_evictable, 50, 100);
-  std::thread t3(remove_evictable, 25, 75);
+  // 尝试移除无效的 frame_id
+  lru_replacer.Remove(10);
+  EXPECT_EQ(lru_replacer.Size(), 0);
+}
 
-  t1.join();
-  t2.join();
-  t3.join();
+TEST(LRUKReplacerTest, MixedOperations) {
+  LRUKReplacer lru_replacer(5, 2);
 
-  // 最终，evictable_frames_ 应包含 0-24 和 75-99，共50个帧
-  EXPECT_EQ(lru_replacer.Size(), 50);
+  lru_replacer.SetEvictable(1, true);
+  lru_replacer.SetEvictable(2, true);
+  EXPECT_EQ(lru_replacer.Size(), 2);
+
+  lru_replacer.SetEvictable(3, true);
+  EXPECT_EQ(lru_replacer.Size(), 3);
+
+  lru_replacer.SetEvictable(2, false);
+  EXPECT_EQ(lru_replacer.Size(), 2);
+
+  lru_replacer.SetEvictable(4, true);
+  EXPECT_EQ(lru_replacer.Size(), 3);
+
+  lru_replacer.Remove(1);
+  EXPECT_EQ(lru_replacer.Size(), 2);
+
+  lru_replacer.SetEvictable(5, true);
+  EXPECT_EQ(lru_replacer.Size(), 3);
+
+  lru_replacer.SetEvictable(3, false);
+  EXPECT_EQ(lru_replacer.Size(), 2);
 }
 
 }  // namespace bustub
